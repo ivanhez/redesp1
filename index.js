@@ -97,12 +97,11 @@ menu([
 
 
 function delUser(xmpp) {
-
   //   <iq type='set' id='unreg1'>
-  //   <query xmlns='jabber:iq:register'>
-  //     <remove/>
-  //   </query>
-  // </iq>
+  //      <query xmlns='jabber:iq:register'>
+  //        <remove/>
+  //      </query>
+  //   </iq>
   xmpp.send(
     xml(
       "iq",
@@ -110,12 +109,12 @@ function delUser(xmpp) {
       xml(
         "query",
         { xmlns: "jabber:iq:register" },
-        xml("remove/")
+        xml("remove")
       )
     )
   );
+  return;
 }
-
 function cmenu(xmpp) {
   menu([
     { hotkey: '1', title: 'CHAT' },
@@ -139,7 +138,7 @@ function cmenu(xmpp) {
           break;
       }
     } else {
-      return
+      return;
     }
   });
 }

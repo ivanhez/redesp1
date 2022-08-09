@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@xmpp/client": "^0.13.1",
+    "@xmpp/debug": "^0.13.0",
+    "cli-interact": "^0.1.9",
+    "console-menu": "^0.1.0",
+    "xmppjs": "^1.0.0"
+  }
+}

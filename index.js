@@ -1,9 +1,11 @@
 const { client, xml } = require("@xmpp/client");
+const setupRoster = require("@xmpp-plugins/roster");
 const debug = require("@xmpp/debug");
+
 const xmpp = client({
   service: "alumchat.fun",
-  username: 'ivanh96',
-  password: '123',
+  username: "mihc",
+  password: "1234",
 });
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
@@ -13,28 +15,106 @@ xmpp.on("error", (err) => {
   console.error(err);
 });
 
-xmpp.on("offline", () => {
-  console.log("offline");
-});
+// xmpp.on("offline", () => {
+//   console.log("offline");
+// });
 
 // xmpp.on("stanza", async (stanza) => {
-//   if (stanza.is("message")) {
-//     await xmpp.send(xml("presence", { type: "unavailable" }));
-//     await xmpp.stop();
+//   if (stanza.is("iq")) {
+//     // console.log(stanza.toString());
+//     console.log(stanza.attrs.type);
 //   }
 // });
 
-// xmpp.on("online", async (address) => {
-//   // Makes itself available
-//   await xmpp.send(xml("presence"));
+xmpp.on("online", async (address) => {
+  // Makes itself available
+  // await xmpp.send(xml("presence"));
 
-//   // Sends a chat message to itself
-//   const message = xml(
-//     "message",
-//     { type: "chat", to: address },
-//     xml("body", {}, "hello world")
+  
+
+  //   await xmpp.send(
+  //   xml(
+  //     "iq",
+  //     { from: address, type: "set" },
+  //     xml(
+  //       "query",
+  //       { xmlns: "jabber:iq:roster" },
+  //       xml("item", { jid: "ivanh@alumchat.fun", name: "ivanh" })
+  //     )
+  //   )
+  // );
+
+  // // Requests roster
+  // await xmpp.send(
+  //   xml("iq", {to:'search.alumchat.fun', type: "get" }, xml("query", { xmlns: "jabber:iq:roster" }))
+  // );
+
+  // const roster = await xmpp.iqCaller.get(xml("query", "jabber:iq:roster"));
+  // console.log(roster.getChildren("item", "jabber:iq:roster"));
+
+  // const message = xml(
+  //   "message",
+  //   { type: "chat", to: 'ivanh@alumchat.fun' },
+  //   xml("body", {}, "hello friend")
+  // );
+  // await xmpp.send(message);
+
+  // const pres = xml(
+  //   "presence",
+  //   { from: address },
+  //   xml("show", {}, "away"),
+  //   xml("status", {}, "AFK"),
+  //   xml("priority", {}, "5")
+  // );
+  // await xmpp.send(pres);
+
+  await xmpp.send(
+    xml(
+      "iq",
+      { type: "get", from: address, to: 'alumchat.fun', id: "items1" },
+      xml(
+        "query",
+        { xmlns: 'http://jabber.org/protocol/disco#items' }
+      )
+    )
+  );
+
+  // await xmpp.send(
+  //   xml(
+  //     "iq",
+  //     { type: "get", to: 'ivanh@alumchat.fun' },
+  //     xml(
+  //       "query",
+  //       { xmlns: 'http://jabber.org/protocol/disco#info' }
+  //     )
+  //   )
+  // );
+
+//   await xmpp.send(
+//     xml(
+//       "iq",
+//       { from: address, id: "rs1", type: "set" },
+//       xml(
+//         "query",
+//         { xmlns: "jabber:iq:roster" },
+//         xml("item", { jid: "ivanh@alumchat.fun" })
+//       )
+//     )
 //   );
-//   await xmpp.send(message);
+});
+
+// xmpp.on("online", async (address) => {
+//   await xmpp.send(
+//     xml(
+//       "iq",
+//       { type: "set", id: "unreg1" },
+//       xml(
+//         "query",
+//         { xmlns: "jabber:iq:register" },
+//         xml("remove")
+//       )
+//     )
+//   );
 // });
 
 // xmpp.on("online", async (address) => {
@@ -45,15 +125,11 @@ xmpp.on("offline", () => {
 //       xml(
 //         "query",
 //         { xmlns: "jabber:iq:register" },
-//         xml("username", {}, "ivanh"),
-//         xml("password", {}, "123")
+//         xml("username", {}, "mihc"),
+//         xml("password", {}, "1234")
 //       )
 //     )
 //   );
 // });
-// xmpp.send(
-//     xml("iq",{ type: "get", id: "reg1", to: "alumchat.fun" },
-//       xml("query", { xmlns: "jabber:iq:register" })
-//     )
-//   );
+
 xmpp.start().catch(console.error);

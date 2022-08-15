@@ -1,6 +1,7 @@
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 process.env["NODE_NO_WARNINGS"] = 1;
 const { client, xml } = require("@xmpp/client");
+const setupRoster = require("@xmpp-plugins/roster");
 const debug = require("@xmpp/debug");
 var menu = require("console-menu");
 const { stat } = require("fs");

@@ -1,4 +1,5 @@
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+process.env["NODE_NO_WARNINGS"] = 1;
 const { client, xml } = require("@xmpp/client");
 const debug = require("@xmpp/debug");
 var menu = require("console-menu");
@@ -10,8 +11,8 @@ async function main() {
     [
       { hotkey: "1", title: "LOGIN" },
       { hotkey: "2", title: "REGISTER" },
-      // { hotkey: '3', title: 'Three' },
-      { separator: true },
+      { hotkey: "3", title: "EXIT" },
+      // { separator: true },
       // { hotkey: '?', title: 'Help' },
     ],
     {
@@ -29,7 +30,7 @@ async function main() {
             username: username,
             password: password,
           });
-          debug(xmpp, true);
+          // debug(xmpp, true);
           xmpp.start().catch(console.error);
           xmpp.on("error", (err) => {
             console.error(err);
@@ -40,15 +41,23 @@ async function main() {
           // });
 
           xmpp.on("stanza", async (stanza) => {
-            // if (stanza.is("message")) {
-            //   await xmpp.send(xml("presence", { type: "unavailable" }));
-            //   await xmpp.stop();
-            // }
+            if (stanza.is("message")) {
+              if (stanza.getChildText("body") != null) {
+                let user = stanza.getAttr("from").substring(0, stanza.getAttr("from").indexOf("@"));
+                console.log(
+                  "\t\t\t" +
+                    user +
+                    ": " +
+                    stanza.getChildText("body")
+                );
+              }
+            }
+            
           });
 
           xmpp.on("online", async (address) => {
             await xmpp.send(xml("presence"));
-            console.log("WELCOME: " + address.user);
+            console.log("WELCOME: " + address.local);
             const froms = address.local + "@" + address.domain;
             cmenu(xmpp, froms);
           });
@@ -82,11 +91,11 @@ async function main() {
           xmpp.start().catch(console.error);
           xmpp.on("stanza", async (stanza) => {
             if (stanza.is("iq")) {
-              if(stanza.attr.type == "result"){
+              if (stanza.attr.type == "result") {
                 console.log("REGISTERED NEW USER SUCCESSFULLY");
                 await xmpp.stop();
               }
-              if(stanza.attr.type == "error"){
+              if (stanza.attr.type == "error") {
                 console.log("ERROR REGISTERING NEW USER");
                 await xmpp.stop();
               }
@@ -94,6 +103,9 @@ async function main() {
             return main();
           });
           break;
+        case 3:
+          console.log("EXITING");
+          process.exit();
         default:
           console.log("ERROR");
           break;
@@ -110,7 +122,7 @@ function cmenu(xmpp, froms) {
       { hotkey: "1", title: "CHAT" },
       { hotkey: "2", title: "ROSTER", selected: true },
       { hotkey: "4", title: "EDIT PRESENCE" },
-      { hotkey: "3", title: "EXIT" },
+      { hotkey: "3", title: "DISCONNECT" },
       { separator: true },
       { hotkey: "0", title: "DELETE USER" },
     ],
@@ -131,7 +143,7 @@ function cmenu(xmpp, froms) {
               xml("body", {}, message)
             )
           );
-          break;
+          return cmenu(xmpp, froms);
         case 2:
           break;
         case 3:

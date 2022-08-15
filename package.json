@@ -1,5 +1,7 @@
 {
   "dependencies": {
+    "@xmpp-plugins/pubsub": "^1.2.0",
+    "@xmpp-plugins/roster": "^1.2.0",
     "@xmpp/client": "^0.13.1",
     "@xmpp/debug": "^0.13.0",
     "cli-interact": "^0.1.9",

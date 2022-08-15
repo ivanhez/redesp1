@@ -4,8 +4,8 @@ const debug = require("@xmpp/debug");
 
 const xmpp = client({
   service: "alumchat.fun",
-  username: "mihc",
-  password: "1234",
+  username: "ivanh",
+  password: "123",
 });
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
@@ -26,20 +26,49 @@ xmpp.on("error", (err) => {
 //   }
 // });
 
+const roster = setupRoster(xmpp);
 xmpp.on("online", async (address) => {
+
+
+
+  // roster.set({jid: 'mihc@alumchat.fun', name: 'mihc'}).then(() => {
+  //   console.log('success')
+  // })
+
+
+  roster.get().then((roster) => {
+    if (!roster) {
+      // the roster hasn't changed since last version
+      return;
+    }
+    console.log(roster.items);
+  });
+
   // Makes itself available
   // await xmpp.send(xml("presence"));
 
-  
+  // const roster = await xmpp.iqCaller.get(xml('query', 'jabber:iq:roster'));
+  // console.log(roster.getChildren('item',  'jabber:iq:roster'));
 
   //   await xmpp.send(
   //   xml(
   //     "iq",
-  //     { from: address, type: "set" },
+  //     {type: "set" },
+  //     xml(
+  //       "enable",
+  //       { xmlns: "urn:xmpp:push:0" , jid: "pubsub.alumchat.fun", node: address.resource },
+  //     )
+  //   )
+  // );
+
+  //   await xmpp.send(
+  //   xml(
+  //     "iq",
+  //     { from: address.local+"@"+address.domain, type: "set", id: "rs1" },
   //     xml(
   //       "query",
   //       { xmlns: "jabber:iq:roster" },
-  //       xml("item", { jid: "ivanh@alumchat.fun", name: "ivanh" })
+  //       xml("item", { jid: "mihc@alumchat.fun"})
   //     )
   //   )
   // );
@@ -68,16 +97,16 @@ xmpp.on("online", async (address) => {
   // );
   // await xmpp.send(pres);
 
-  await xmpp.send(
-    xml(
-      "iq",
-      { type: "get", from: address, to: 'alumchat.fun', id: "items1" },
-      xml(
-        "query",
-        { xmlns: 'http://jabber.org/protocol/disco#items' }
-      )
-    )
-  );
+  // await xmpp.send(
+  //   xml(
+  //     "iq",
+  //     { type: "get", from: address, to: 'pubsub.alumchat.fun', id: "items1" },
+  //     xml(
+  //       "query",
+  //       { xmlns: 'http://jabber.org/protocol/disco#items' }
+  //     )
+  //   )
+  // );
 
   // await xmpp.send(
   //   xml(
@@ -90,17 +119,17 @@ xmpp.on("online", async (address) => {
   //   )
   // );
 
-//   await xmpp.send(
-//     xml(
-//       "iq",
-//       { from: address, id: "rs1", type: "set" },
-//       xml(
-//         "query",
-//         { xmlns: "jabber:iq:roster" },
-//         xml("item", { jid: "ivanh@alumchat.fun" })
-//       )
-//     )
-//   );
+  //   await xmpp.send(
+  //     xml(
+  //       "iq",
+  //       { from: address, id: "rs1", type: "set" },
+  //       xml(
+  //         "query",
+  //         { xmlns: "jabber:iq:roster" },
+  //         xml("item", { jid: "ivanh@alumchat.fun" })
+  //       )
+  //     )
+  //   );
 });
 
 // xmpp.on("online", async (address) => {
@@ -133,3 +162,82 @@ xmpp.on("online", async (address) => {
 // });
 
 xmpp.start().catch(console.error);
+
+// menu(
+//   [
+//     { hotkey: "1", title: "ENABLE" },
+//     { hotkey: "2", title: "DISABLE" },
+//     { hotkey: "3", title: "SEND" },
+//     { hotkey: "4", title: "EXIT" },
+//   ],
+//   {
+//     header: "NOTIFICATIONS",
+//     border: true,
+//   }
+// ).then((item) => {
+//   if (item) {
+//     switch (parseInt(item.hotkey)) {
+//       case 1:
+//         xmpp.send(
+//           xml(
+//             "iq",
+//             { type: "set" },
+//             xml("enable", {
+//               xmlns: "urn:xmpp:push:0",
+//               jid: "pubsub.alumchat.fun",
+//               node: address.resource,
+//             })
+//           )
+//         );
+//         xmpp.on("stanza", async (stanza) => {
+//           if (stanza.is("iq")) {
+//             if (stanza.attr.type == "result") {
+//               console.log("\t\t\tENABLED SUCCESSFULLY");
+//               await nmenu(xmpp, froms, address);
+//             }
+//             if (stanza.attr.type == "error") {
+//               console.log("\t\t\tERROR IN ENABLING NOTIFICATIONS");
+//             }
+//           }
+//         });
+//       case 2:
+//         xmpp.send(
+//           xml(
+//             "iq",
+//             { type: "set" },
+//             xml("disable", {
+//               xmlns: "urn:xmpp:push:0",
+//               jid: "pubsub.alumchat.fun",
+//               node: address.resource,
+//             })
+//           )
+//         );
+//         xmpp.on("stanza", async (stanza) => {
+//           if (stanza.is("iq")) {
+//             if (stanza.attr.type == "result") {
+//               console.log("\t\t\tDISABLED SUCCESSFULLY");
+//             }
+//             if (stanza.attr.type == "error") {
+//               console.log("\t\t\tERROR IN DISABLING NOTIFICATIONS");
+//             }
+//           }
+//         });
+//     }
+//   }
+// });
+
+
+
+// xmpp.send(
+//   xml(
+//     "iq",
+//     { to: froms, type: "set" },
+//     xml(
+//       "query",
+//       { xmlns: "jabber:iq:roster" },
+//       xml("item", { jid: contact + "@alumchat.fun", name: contact })
+//     )
+//   )
+// ).then(() => {
+//   console.log("\t\t\t\tSUCCESSFULLY ADDED CONTACT : " + contact);
+// }).catch(console.error);

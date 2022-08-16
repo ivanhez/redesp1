@@ -50,27 +50,48 @@ async function main() {
 
           xmpp.on("stanza", async (stanza) => {
             if (stanza.is("message")) {
+              let user = stanza
+                .getAttr("from")
+                .substring(0, stanza.getAttr("from").indexOf("@"));
               if (stanza.getChildText("body") != null) {
-                let user = stanza
-                  .getAttr("from")
-                  .substring(0, stanza.getAttr("from").indexOf("@"));
                 console.log(
                   "\t\t\t\t" + user + ": " + stanza.getChildText("body")
                 );
               }
+              if (stanza.getChild("composing") != null) {
+                console.log("\t\t\t\t" + user + " is typing...");
+              }
+              if (stanza.getChild("paused") != null) {
+                console.log("\t\t\t\t" + user + "paused typing...");
+              }
             }
-            // if (stanza.is("iq")) {
-            //   if (stanza.attr.type == "result") {
-            //     stanza.getChildElements("query").forEach((query) => {
-            //         console.log("\t\t\t\t" + query.getChildText("jid"));
-            //     });
-            //   }
-            // }
+            if (stanza.attrs.type == "subscribe") {
+              xmpp.send(
+                xml("presence", { to: stanza.attrs.from, type: "subscribed" })
+              );
+            }
+            if (stanza.is("presence")) {
+              let uss = stanza.attrs.from.substring(
+                0,
+                stanza.attrs.from.indexOf("@")
+              );
+              console.log("\t\t\t\t" + uss + " is online");
+              switch (stanza.attrs.type) {
+                case "available":
+                  console.log("\t\t\t\t" + uss + " is available");
+                  break;
+                case "unavailable":
+                  console.log("\t\t\t\t" + uss + " is offline");
+                  break;
+                case "error":
+                  console.log("\t\t\t\t" + uss + " is not subscribed");
+              }
+            }
           });
 
           xmpp.on("online", async (address) => {
             await xmpp.send(xml("presence"));
-            console.log("WELCOME: " + address.local);
+            console.log("WELCOME " + address.local);
             const froms = address.local + "@" + address.domain;
             cmenu(xmpp, froms, address, roster);
           });
@@ -132,6 +153,7 @@ function cmenu(xmpp, froms, address, roster) {
       { hotkey: "4", title: "EDIT PRESENCE" },
       { hotkey: "5", title: "SEND NOTIFICATION" },
       { hotkey: "6", title: "ADD CONTACT" },
+      { hotkey: "7", title: "CHECK CONTACT" },
       { hotkey: "3", title: "DISCONNECT" },
       { separator: true },
       { hotkey: "0", title: "DELETE USER" },
@@ -164,7 +186,9 @@ function cmenu(xmpp, froms, address, roster) {
               return;
             }
             console.log("\t\t\t\tCONTACTS:");
-            console.log("\t\t\t\t"+roster.items.map((item) => item.jid.local));
+            console.log(
+              "\t\t\t\t" + roster.items.map((item) => item.jid.local)
+            );
           });
 
           return cmenu(xmpp, froms, address, roster);
@@ -194,11 +218,40 @@ function cmenu(xmpp, froms, address, roster) {
           return cmenu(xmpp, froms, address, roster);
         case 6:
           var contact = query("CONTACT: ");
-          roster
-            .set({ jid: contact + "@alumchat.fun", name: contact })
+          xmpp
+            .send(
+              xml("presence", {
+                to: contact + "@alumchat.fun",
+                type: "subscribe",
+              })
+            )
             .then(() => {
-              console.log("\t\t\t\tSUCCESSFULLY ADDED CONTACT : " + contact);
-            });
+              xmpp
+                .send(
+                  xml(
+                    "iq",
+                    { from: froms, type: "set", id: "roster_2" },
+                    xml(
+                      "query",
+                      { xmlns: "jabber:iq:roster" },
+                      xml("item", { jid: contact + "@alumchat.fun" })
+                    )
+                  )
+                )
+                .then(() => {
+                  console.log(
+                    "\t\t\t\tSUCCESSFULLY ADDED CONTACT : " + contact
+                  );
+                })
+                .catch(console.error);
+            })
+            .catch(console.error);
+          return cmenu(xmpp, froms, address, roster);
+        case 7:
+          var contact = query("CONTACT: ");
+          xmpp.send(
+            xml("presence", { to: contact + "@alumchat.fun", type: "probe" })
+          );
           return cmenu(xmpp, froms, address, roster);
         case 0:
           xmpp.send(

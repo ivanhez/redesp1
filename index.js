@@ -8,6 +8,27 @@ const setupPubSub = require("@xmpp-plugins/pubsub");
 var menu = require("console-menu");
 const { stat } = require("fs");
 var query = require("cli-interact").question;
+var mystatus = "login in";
+
+async function checkuser(xmpp, contact) {
+  await xmpp
+    .send(xml("presence", { to: contact + "@alumchat.fun", type: "probe" }))
+    .then(() => {
+      xmpp.on("stanza", async (stanza) => {
+        let ptype = await stanza.attrs.type;
+        switch (ptype) {
+          case "available":
+            return "(available)";
+          case "unavailable":
+            return "(unavailable)";
+          case "error":
+            return "(not subscribed)";
+          default:
+            return "(online)";
+        }
+      });
+    });
+}
 
 async function main() {
   menu(
@@ -15,8 +36,6 @@ async function main() {
       { hotkey: "1", title: "LOGIN" },
       { hotkey: "2", title: "REGISTER" },
       { hotkey: "3", title: "EXIT" },
-      // { separator: true },
-      // { hotkey: '?', title: 'Help' },
     ],
     {
       header: "MENU",
@@ -38,16 +57,12 @@ async function main() {
           xmpp.on("error", (err) => {
             console.error(err);
           });
-
-          // xmpp.on("offline", () => {
-          //   console.log("offline");
-          // });
           const pubSubPlugin = setupPubSub(xmpp);
           const roster = setupRoster(xmpp);
+
           pubSubPlugin.on(`item-published:${"pubsub.alumchat.fun"}`, (ev) => {
             console.log("NOTIFICATION: ", ev);
           });
-
           xmpp.on("stanza", async (stanza) => {
             if (stanza.is("message")) {
               let user = stanza
@@ -65,34 +80,69 @@ async function main() {
                 console.log("\t\t\t\t" + user + "paused typing...");
               }
             }
-            if (stanza.attrs.type == "subscribe") {
-              xmpp.send(
-                xml("presence", { to: stanza.attrs.from, type: "subscribed" })
-              );
-            }
             if (stanza.is("presence")) {
               let uss = stanza.attrs.from.substring(
                 0,
                 stanza.attrs.from.indexOf("@")
               );
-              console.log("\t\t\t\t" + uss + " is online");
-              switch (stanza.attrs.type) {
+              if (stanza.getChild("status") != null) {
+                console.log(
+                  "\t\t\t\t" +
+                    uss +
+                    " status is " +
+                    stanza.getChildText("status")
+                );
+              }
+              let ptype = await stanza.attrs.type;
+              switch (ptype) {
                 case "available":
                   console.log("\t\t\t\t" + uss + " is available");
                   break;
                 case "unavailable":
-                  console.log("\t\t\t\t" + uss + " is offline");
+                  console.log("\t\t\t\t" + uss + " is unavailable");
                   break;
                 case "error":
                   console.log("\t\t\t\t" + uss + " is not subscribed");
+                  break;
+                case "probe":
+                  xmpp.send(
+                    xml(
+                      "presence",
+                      { from: froms },
+                      xml("show", {}, "chat"),
+                      xml("status", {}, mystatus)
+                      // xml("priority", {}, npriority)
+                    )
+                  );
+                  break;
+                case "subscribe":
+                  xmpp.send(
+                    xml("presence", {
+                      to: stanza.attrs.from,
+                      type: "subscribed",
+                    })
+                  );
+                  break;
+                default:
+                  console.log("\t\t\t\t" + uss + " is online");
+                  break;
               }
             }
           });
 
           xmpp.on("online", async (address) => {
-            await xmpp.send(xml("presence"));
+            // await xmpp.send(xml("presence"));
             console.log("WELCOME " + address.local);
             const froms = address.local + "@" + address.domain;
+            await xmpp.send(
+              xml(
+                "presence",
+                { from: froms },
+                xml("show", {}, "chat"),
+                xml("status", {}, mystatus)
+                // xml("priority", {}, npriority)
+              )
+            );
             cmenu(xmpp, froms, address, roster);
           });
           break;
@@ -105,7 +155,7 @@ async function main() {
           var username = query("NEW USERNAME: ");
           var password = query("NEW PASSWORD: ");
           xmpp.on("online", async (address) => {
-            await xmpp.send(
+            xmpp.send(
               xml(
                 "iq",
                 { type: "set", id: "reg2" },
@@ -117,20 +167,20 @@ async function main() {
                 )
               )
             );
+            xmpp.on("stanza", async (stanza) => {
+              if (stanza.is("iq")) {
+                if (stanza.attr.type == "result") {
+                  console.log("\t\t\t\tREGISTERED NEW USER SUCCESSFULLY");
+                  xmpp.disconnect();
+                }
+                if (stanza.attr.type == "error") {
+                  console.log("\t\t\t\tERROR REGISTERING NEW USER");
+                  xmpp.disconnect();
+                }
+              }
+            });
           });
           xmpp.start().catch(console.error);
-          xmpp.on("stanza", async (stanza) => {
-            if (stanza.is("iq")) {
-              if (stanza.attr.type == "result") {
-                console.log("\t\t\t\tREGISTERED NEW USER SUCCESSFULLY");
-                xmpp.disconnect();
-              }
-              if (stanza.attr.type == "error") {
-                console.log("\t\t\t\tERROR REGISTERING NEW USER");
-                xmpp.disconnect();
-              }
-            }
-          });
           return;
         case 3:
           console.log("EXITING");
@@ -145,7 +195,7 @@ async function main() {
   });
 }
 
-function cmenu(xmpp, froms, address, roster) {
+async function cmenu(xmpp, froms, address, roster) {
   menu(
     [
       { hotkey: "1", title: "CHAT" },
@@ -181,14 +231,17 @@ function cmenu(xmpp, froms, address, roster) {
           return cmenu(xmpp, froms, address, roster);
         case 2:
           roster.get().then((roster) => {
-            if (!roster) {
-              // the roster hasn't changed since last version
-              return;
-            }
             console.log("\t\t\t\tCONTACTS:");
-            console.log(
-              "\t\t\t\t" + roster.items.map((item) => item.jid.local)
-            );
+            // console.log(
+            //   "\t\t\t\t" + roster.items.map((item) => item.jid.local)
+            // );
+            roster.items.forEach((element) => {
+              checkuser(xmpp, element.jid.local).then((result) => {
+                if (result) {
+                  console.log("\t\t\t\t" + element.jid.local + result);
+                }
+              });
+            });
           });
 
           return cmenu(xmpp, froms, address, roster);
@@ -198,15 +251,15 @@ function cmenu(xmpp, froms, address, roster) {
           break;
         case 4:
           // var show = query("SHOW: ");
-          var status = query("STATUS: ");
-          var priority = parseInt(query("PRIORITY: "));
+          mystatus = query("STATUS: ");
+          // mypriority = parseInt(query("PRIORITY: "));
           xmpp.send(
             xml(
               "presence",
               { from: froms },
               xml("show", {}, "chat"),
-              xml("status", {}, status),
-              xml("priority", {}, priority)
+              xml("status", {}, mystatus)
+              // xml("priority", {}, npriority)
             )
           );
           return cmenu(xmpp, froms, address, roster);

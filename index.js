@@ -5,12 +5,12 @@ const setupRoster = require("@xmpp-plugins/roster");
 const debug = require("@xmpp/debug");
 const setupPubSub = require("@xmpp-plugins/pubsub");
 const fs = require("fs");
-
 var menu = require("console-menu");
 const { stat } = require("fs");
 var query = require("cli-interact").question;
 var mystatus = "login in";
 
+// funcion para verificar la presencia de usuario
 async function checkuser(xmpp, contact) {
   await xmpp
     .send(xml("presence", { to: contact + "@alumchat.fun", type: "probe" }))
@@ -31,6 +31,7 @@ async function checkuser(xmpp, contact) {
     });
 }
 
+// funcion de menu principal para iniciar la conexion
 async function main() {
   menu(
     [
@@ -45,6 +46,8 @@ async function main() {
   ).then((item) => {
     if (item) {
       switch (parseInt(item.hotkey)) {
+
+        // LOGIN
         case 1:
           var username = query("USERNAME: ");
           var password = query("PASSWORD: ");
@@ -54,41 +57,52 @@ async function main() {
             password: password,
           });
           // debug(xmpp, true);
+
+          // Se inica la conexion
           xmpp.start().catch(console.error);
           xmpp.on("error", (err) => {
             console.error(err);
           });
           const pubSubPlugin = setupPubSub(xmpp);
           const roster = setupRoster(xmpp);
-
           pubSubPlugin.on(`item-published:${"pubsub.alumchat.fun"}`, (ev) => {
             console.log("NOTIFICATION: ", ev);
           });
+
+          // Manejo de stanzas
           xmpp.on("stanza", async (stanza) => {
             if (stanza.is("message")) {
               let user = stanza
                 .getAttr("from")
                 .substring(0, stanza.getAttr("from").indexOf("@"));
+
+              // recibo de mensajes
               if (stanza.getChildText("body") != null) {
                 console.log(
                   "\t\t\t\t" + user + ": " + stanza.getChildText("body")
                 );
               }
+
+              // manejo de chatstates
               if (stanza.getChild("composing") != null) {
                 console.log("\t\t\t\t" + user + " is typing...");
               }
               if (stanza.getChild("paused") != null) {
                 console.log("\t\t\t\t" + user + "paused typing...");
               }
+
+              // try recibir archivo
               if (stanza.getChild("data") != null) {
                 console.log(
                   "\t\t\t\t" +
-                    user +
-                    "sent a file\n" +
-                    stanza.getChildText("data")
+                  user +
+                  "sent a file\n" +
+                  stanza.getChildText("data")
                 );
               }
             }
+
+            // manejo de presencia
             if (stanza.is("presence")) {
               let uss = stanza.attrs.from.substring(
                 0,
@@ -97,9 +111,9 @@ async function main() {
               if (stanza.getChild("status") != null) {
                 console.log(
                   "\t\t\t\t" +
-                    uss +
-                    " status is " +
-                    stanza.getChildText("status")
+                  uss +
+                  " status is " +
+                  stanza.getChildText("status")
                 );
               }
               let ptype = await stanza.attrs.type;
@@ -124,6 +138,8 @@ async function main() {
                     )
                   );
                   break;
+
+                // subscribed automatico
                 case "subscribe":
                   xmpp.send(
                     xml("presence", {
@@ -132,15 +148,18 @@ async function main() {
                     })
                   );
                   break;
+
+                // si no hay type pero hay presencia, se encuentra online
                 default:
                   console.log("\t\t\t\t" + uss + " is online");
                   break;
               }
             }
           });
-
           xmpp.on("online", async (address) => {
             // await xmpp.send(xml("presence"));
+
+            // El usuario hizo login
             console.log("WELCOME " + address.local);
             const froms = address.local + "@" + address.domain;
             await xmpp.send(
@@ -155,6 +174,8 @@ async function main() {
             cmenu(xmpp, froms, address, roster);
           });
           break;
+
+        // Registro de nuevo usuario
         case 2:
           var xmpp = client({
             service: "alumchat.fun",
@@ -191,6 +212,8 @@ async function main() {
           });
           xmpp.start().catch(console.error);
           return;
+
+        // Salir de la aplicacion
         case 3:
           console.log("EXITING");
           process.exit();
@@ -205,6 +228,8 @@ async function main() {
 }
 
 async function cmenu(xmpp, froms, address, roster) {
+
+  // menu principal del cliente
   menu(
     [
       { hotkey: "1", title: "CHAT" },
@@ -226,6 +251,8 @@ async function cmenu(xmpp, froms, address, roster) {
   ).then((item) => {
     if (item) {
       switch (parseInt(item.hotkey)) {
+
+        // chat
         case 1:
           var to = query("TO: ");
           var message = query("MESSAGE: ");
@@ -240,12 +267,11 @@ async function cmenu(xmpp, froms, address, roster) {
             "\t\t\t\t" + froms.substring(0, froms.indexOf("@")) + ": " + message
           );
           return cmenu(xmpp, froms, address, roster);
+
+        // ver contactos
         case 2:
           roster.get().then((roster) => {
             console.log("\t\t\t\tCONTACTS:");
-            // console.log(
-            //   "\t\t\t\t" + roster.items.map((item) => item.jid.local)
-            // );
             roster.items.forEach((element) => {
               checkuser(xmpp, element.jid.local).then((result) => {
                 if (result) {
@@ -254,12 +280,15 @@ async function cmenu(xmpp, froms, address, roster) {
               });
             });
           });
-
           return cmenu(xmpp, froms, address, roster);
+
+        // desconectarse
         case 3:
           xmpp.disconnect();
           main();
           break;
+
+        // cambiar status de presencia
         case 4:
           // var show = query("SHOW: ");
           mystatus = query("STATUS: ");
@@ -274,12 +303,16 @@ async function cmenu(xmpp, froms, address, roster) {
             )
           );
           return cmenu(xmpp, froms, address, roster);
+
+        // notificacion en pubsub
         case 5:
           var to = query("MESSAGE NOTIFICATION: ");
           async () => {
             pubSubPlugin.publish(message);
           };
           return cmenu(xmpp, froms, address, roster);
+
+        // agregar contacto
         case 6:
           var contact = query("CONTACT: ");
           xmpp
@@ -311,12 +344,16 @@ async function cmenu(xmpp, froms, address, roster) {
             })
             .catch(console.error);
           return cmenu(xmpp, froms, address, roster);
+
+        // checkear contacto
         case 7:
           var contact = query("CONTACT: ");
           xmpp.send(
             xml("presence", { to: contact + "@alumchat.fun", type: "probe" })
           );
           return cmenu(xmpp, froms, address, roster);
+
+        // mandar archivo
         case 8:
           var to = query("TO: ");
           var file = query("FILE: ");
@@ -336,8 +373,12 @@ async function cmenu(xmpp, froms, address, roster) {
             }
           });
           return cmenu(xmpp, froms, address, roster);
+
+        // groupchat
         case 9:
           break;
+
+        // eliminar contacto
         case 0:
           xmpp.send(
             xml(
@@ -353,4 +394,7 @@ async function cmenu(xmpp, froms, address, roster) {
     }
   });
 }
+
+// main
 main();
+// 400 lineas :v

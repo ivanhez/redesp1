@@ -4,6 +4,7 @@ const { client, xml } = require("@xmpp/client");
 const setupRoster = require("@xmpp-plugins/roster");
 const debug = require("@xmpp/debug");
 const setupPubSub = require("@xmpp-plugins/pubsub");
+const fs = require("fs");
 
 var menu = require("console-menu");
 const { stat } = require("fs");
@@ -78,6 +79,14 @@ async function main() {
               }
               if (stanza.getChild("paused") != null) {
                 console.log("\t\t\t\t" + user + "paused typing...");
+              }
+              if (stanza.getChild("data") != null) {
+                console.log(
+                  "\t\t\t\t" +
+                    user +
+                    "sent a file\n" +
+                    stanza.getChildText("data")
+                );
               }
             }
             if (stanza.is("presence")) {
@@ -200,11 +209,13 @@ async function cmenu(xmpp, froms, address, roster) {
     [
       { hotkey: "1", title: "CHAT" },
       { hotkey: "2", title: "ROSTER" },
+      { hotkey: "3", title: "DISCONNECT" },
       { hotkey: "4", title: "EDIT PRESENCE" },
       { hotkey: "5", title: "SEND NOTIFICATION" },
       { hotkey: "6", title: "ADD CONTACT" },
       { hotkey: "7", title: "CHECK CONTACT" },
-      { hotkey: "3", title: "DISCONNECT" },
+      { hotkey: "8", title: "SEND FILE" },
+      { hotkey: "9", title: "GROUPCHAT" },
       { separator: true },
       { hotkey: "0", title: "DELETE USER" },
     ],
@@ -306,6 +317,27 @@ async function cmenu(xmpp, froms, address, roster) {
             xml("presence", { to: contact + "@alumchat.fun", type: "probe" })
           );
           return cmenu(xmpp, froms, address, roster);
+        case 8:
+          var to = query("TO: ");
+          var file = query("FILE: ");
+          fs.stat(file, (err, stats) => {
+            if (err) {
+              console.log("FILE DOES NOT EXIST");
+            } else {
+              var fsize = stats.size;
+              var bitmap = fs.readFileSync(file);
+              xmpp.send(
+                xml(
+                  "message",
+                  { to: to + "@alumchat.fun", from: froms },
+                  xml("data", {}, Buffer(bitmap).toString("base64"))
+                )
+              );
+            }
+          });
+          return cmenu(xmpp, froms, address, roster);
+        case 9:
+          break;
         case 0:
           xmpp.send(
             xml(
